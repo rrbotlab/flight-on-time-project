@@ -6,4 +6,3 @@ uvicorn
 joblib
 matplotlib
 seaborn
-xgboost
