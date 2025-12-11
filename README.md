@@ -73,11 +73,13 @@ A API estará disponível em: `http://127.0.0.1:8000`
 **Exemplo de Resposta:**
 ```json
 {
-  "previsao": "Atrasado",
-  "probabilidade": 0.6369,
+  "previsao": "ATRASADO",
+  "probabilidade": 0.8309,
+  "nivel_risco": "ALTO",
+  "mensagem": "Alta probabilidade de atraso (>15 min).",
   "detalles": {
-    "distancia": 2100.5,
-    "hora": 14
+    "distancia": 2689.0,
+    "hora_partida": 20
   }
 }
 ```
