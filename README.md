@@ -1,6 +1,6 @@
 #  FlightOnTime - Motor de Inteligência Artificial
 
-> **Status:**  Em Produção (v3.0.0-CAT) | **Recall de Segurança:** 89.4%
+> **Status:**  Em Produção (v3.0.1-CAT) | **Recall de Segurança:** 88.9%
 
 Este repositório contém o **Core de Data Science** do projeto FlightOnTime. Nossa missão é prever atrasos em voos comerciais no Brasil utilizando Machine Learning avançado, focando na segurança e planejamento do passageiro.
 
@@ -16,7 +16,8 @@ Testamos diversos algoritmos de Boosting, priorizando a métrica de **Recall** (
 | :--- | :--- | :--- | :--- | :--- |
 | v1.0 | **Random Forest** | Bagging Ensemble | 87.0% | Descontinuado |
 | v2.0 | **XGBoost** | Gradient Boosting | 87.2% | Testado |
-| **v3.0** | **CatBoost** | **Categorical Boosting** | **89.4% ** | **Em Produção** |
+| v3.0 | **CatBoost** | Categorical Boosting | 89.4% | MPV |
+| **v3.0** | **CatBoost + SafeEncoder** | **Anti-Leakage Pipeline** | **88.9% ** | **Em Produção (Hardening)** |
 
 **Por que CatBoost?**
 O algoritmo da Yandex demonstrou superioridade ao lidar com as variáveis categóricas complexas (rotas e companhias aéreas), permitindo atingir quase **90% de detecção de atrasos** sem sacrificar a performance da API.
@@ -47,6 +48,7 @@ O modelo não olha apenas para o passado. Enriquecemos os dados brutos com:
 1.  **Detector de Feriados Dinâmico:** Cruzamento em tempo real da data do voo com o calendário oficial.
 2.  **Georreferenciamento:** Cálculo da distância geodésica (`distancia_km`) entre coordenadas de aeroportos.
 3.  **Decomposição Temporal:** Análise granular de Hora, Dia da Semana e Sazonalidade.
+4.  **Pipeline Blindado (SafeEncoding):** Implementação de encoders personalizados (SafeLabelEncoder) para eliminar Data Leakage e garantir que a API não quebre ao receber novos aeroportos/companhias em produção.
 
 ### Stack Tecnológico
 * **Linguagem:** Python 3.10+
