@@ -1,0 +1,25 @@
+package com.flightontime.flightapi.domain.flight.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.time.LocalDateTime;
+
+public record FlightRequest(
+        @NotBlank
+        @JsonProperty("companhia")
+        String airline,
+
+        @NotBlank
+        @JsonProperty("origem")
+        String origin,
+
+        @NotBlank
+        @JsonProperty("destino")
+        String destination,
+
+        @JsonProperty("data_partida")
+        @NotNull LocalDateTime departureDate
+) {
+}

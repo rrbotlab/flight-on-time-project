@@ -1,0 +1,13 @@
+${AnsiColor.BLUE}
+   _______      __   __    ____         _______
+  / __/ (_)__ _/ /  / /_  / __ \___    /_  __(_)_ _  ___
+ / _// / / _ `/ _ \/ __/ / /_/ / _ \    / / / /  ' \/ -_)
+/_/ /_/_/\_, /_//_/\__/  \____/_//_/   /_/ /_/_/_/_/\__/
+        /___/
+${AnsiColor.GREEN}
+${application.title} ${application.version}
+Powered by Spring Boot ${spring-boot.version}
+${AnsiColor.RED}
+2025 Ricardo G ${AnsiColor.BLUE}https://github.com/rrbotlab
+${AnsiColor.DEFAULT}
+
