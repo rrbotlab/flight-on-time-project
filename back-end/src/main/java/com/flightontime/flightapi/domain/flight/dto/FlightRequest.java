@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record FlightRequest(
         @NotBlank
@@ -22,6 +22,6 @@ public record FlightRequest(
 
         @JsonProperty("data_partida")
         @Future
-        @NotNull LocalDateTime departureDate
+        @NotNull Instant departureDate
 ) {
 }
