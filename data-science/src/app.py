@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware  # <--- IMPORTANTE: NUEVO IMPORT
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
@@ -11,17 +11,17 @@ import os
 import holidays
 import requests
 from datetime import datetime
+import pytz # <--- NUEVO IMPORT: Para la conversión de Zona Horaria
 
 app = FastAPI(title="FlightOnTime AI Service (V5.0 Live Weather)")
 
 # --- CONFIGURAÇÃO CORS  ---
-# Permite que qualquer origem conecte (necessário para testes de front-end)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Aceita tudo
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],      # Aceita GET, POST, OPTIONS, etc.
-    allow_headers=["*"],      # Aceita todos os headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- CARGA ROBUSTA ---
@@ -42,32 +42,29 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlambda/2)**2
     return r * 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
 
-# --- NOVA FUNÇÃO: FETCH WEATHER ---
+# --- FUNÇÃO: FETCH WEATHER ---
 def get_live_weather(lat, long, date_time_str):
-    """
-    Consulta OpenMeteo para a data/hora específica.
-    Retorna (precipitation, wind_speed)
-    """
     try:
+        # Aquí ya llegará la hora local corregida gracias a la vacuna en predict()
         dt = pd.to_datetime(date_time_str)
         date_str = dt.strftime('%Y-%m-%d')
         hour = dt.hour
         
-        # OpenMeteo Endpoint
+        # OpenMeteo Endpoint (timezone=America/Sao_Paulo es clave aquí)
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={long}&hourly=precipitation,wind_speed_10m&start_date={date_str}&end_date={date_str}&timezone=America%2FSao_Paulo"
         
-        response = requests.get(url, timeout=3) # Timeout curto para não travar a API
+        response = requests.get(url, timeout=3)
         if response.status_code == 200:
             data = response.json()
-            # O OpenMeteo retorna lista por horas (0 a 23). Pegamos o índice da hora do voo.
             if 'hourly' in data:
+                # Si pedimos las 17h local, OpenMeteo (configurado en SaoPaulo) nos da el índice 17.
                 precip = data['hourly']['precipitation'][hour]
                 wind = data['hourly']['wind_speed_10m'][hour]
                 return float(precip), float(wind), "✅ LIVE (OpenMeteo)"
     except Exception as e:
         print(f" Weather API Error: {e}")
     
-    return 0.0, 5.0, " Offline/Date Limit" # Fallback se falhar ou data for longe
+    return 0.0, 5.0, " Offline/Date Limit"
 
 # Carga do Modelo
 if os.path.exists(model_path):
@@ -91,7 +88,6 @@ class FlightInput(BaseModel):
     destino: str
     data_partida: str  
     distancia_km: Optional[float] = None 
-    # Clima agora é opcional, pois tentaremos buscar sozinhos
     precipitation: Optional[float] = None
     wind_speed: Optional[float] = None
 
@@ -100,6 +96,26 @@ def predict(flight: FlightInput):
     if not model: raise HTTPException(status_code=503, detail="Service Unavailable")
     
     try:
+        # ==============================================================================
+        # UTC
+        # ==============================================================================
+        # 1. Parseamos la fecha. Pandas detecta si viene UTC (Z) o Local.
+        dt_obj = pd.to_datetime(flight.data_partida)
+        
+        # 2. Si tiene zona horaria (ej: UTC del backend nuevo), convertimos a Sao Paulo
+        if dt_obj.tz is not None:
+            dt_obj = dt_obj.tz_convert('America/Sao_Paulo')
+            # 3. Quitamos la info de zona para que el resto del código la trate como "Local Pura"
+            #    (Así, 17:00 UTC-3 se convierte en simplemente 17:00)
+            dt_obj = dt_obj.tz_localize(None)
+        
+        # 4. Sobrescribimos la fecha en el objeto flight con la hora LOCAL corregida
+        flight.data_partida = dt_obj.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # ==============================================================================
+        # Ahora el resto del código piensa que recibió hora local
+        # ==============================================================================
+
         # 1. Distância Automática
         dist_final = flight.distancia_km
         orig_lat, orig_long = 0, 0
@@ -115,15 +131,14 @@ def predict(flight: FlightInput):
             else:
                 dist_final = 800.0
 
-        # 2. CLIMA AUTOMÁTICO (A GRANDE MUDANÇA)
+        # 2. CLIMA AUTOMÁTICO
         precip_final = flight.precipitation
         wind_final = flight.wind_speed
         weather_source = "Manual Input"
 
-        # Se o usuário NÃO mandou clima, nós buscamos
         if precip_final is None and wind_final is None:
             if orig_lat != 0:
-                # Buscamos o clima na ORIGEM (onde o voo decola é o mais crítico)
+                # Usamos flight.data_partida que YA ESTÁ CORREGIDA a hora local
                 p, w, source = get_live_weather(orig_lat, orig_long, flight.data_partida)
                 precip_final = p
                 wind_final = w
@@ -132,12 +147,12 @@ def predict(flight: FlightInput):
                 precip_final, wind_final = 0.0, 5.0
                 weather_source = "No Coords Found"
         else:
-            # Se o usuário mandou algo, usamos (mas garantimos que não seja None)
             precip_final = precip_final if precip_final is not None else 0.0
             wind_final = wind_final if wind_final is not None else 5.0
 
         # 3. Pipeline ML
-        dt = pd.to_datetime(flight.data_partida)
+        # Usamos dt_obj que ya calculamos arriba (Hora Local)
+        dt = dt_obj 
         is_holiday = 1 if dt.date() in holidays.Brazil() else 0
         
         input_df = pd.DataFrame([{
@@ -145,7 +160,7 @@ def predict(flight: FlightInput):
             'origem': str(flight.origem),
             'destino': str(flight.destino),
             'distancia_km': float(dist_final),
-            'hora': dt.hour,
+            'hora': dt.hour,      # Ahora será 17 (Local) en vez de 20 (UTC)
             'dia_semana': dt.dayofweek,
             'mes': dt.month,
             'is_holiday': is_holiday,
@@ -178,6 +193,8 @@ def predict(flight: FlightInput):
             }
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc() # Esto ayuda a ver errores en la terminal
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

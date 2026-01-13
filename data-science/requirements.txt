@@ -8,3 +8,4 @@ pydantic
 catboost==1.2.8
 numpy
 requests
+pytz
