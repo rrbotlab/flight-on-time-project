@@ -1,0 +1,15 @@
+{
+	auto_https off
+	auto_https disable_redirects
+}
+
+:80 {
+
+        root * /usr/share/caddy
+
+        # Enable the static file server.
+        file_server
+
+}
+
+
