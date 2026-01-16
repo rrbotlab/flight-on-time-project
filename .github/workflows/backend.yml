@@ -1,0 +1,26 @@
+name: Backend Pipeline
+
+on:
+  push:
+    branches: [ deploy ]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger backend deploy
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_TOKEN }}" \
+            -d '{
+              "service": "backend",
+              "commit": "${{ github.sha }}"
+            }' \
+            ${{ secrets.DEPLOY_WEBHOOK_URL }}
